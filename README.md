@@ -33,7 +33,7 @@ See [versions.txt](versions.txt)
 
 ## How to upload a firmware (OS Windows only)
 
-- download a special firmware pack (see [**Releases**](releases) section)
+- download a special firmware pack (see [**Releases**](https://github.com/rigexpert/libfobos-sdr-agile/releases) section)
 - unpack anywhere
 - follow the instructions in Readme.txt
 
