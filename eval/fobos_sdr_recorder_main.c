@@ -136,7 +136,7 @@ void test_recorder(void)
             result = fobos_sdr_set_clk_source(dev, clk_source);
             if (result != 0)
             {
-                printf("fobos_sdr_set_samplerate - error!\n");
+                printf("fobos_sdr_set_clk_source - error!\n");
             }
 
             struct rx_ctx_t rx_ctx;
