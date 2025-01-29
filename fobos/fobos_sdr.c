@@ -9,6 +9,7 @@
 //  Fobos SDR (agile) special API library
 //  To be used with special firmware only
 //  2024.12.07
+//  2025.01.29 - v.3.0.1 - fobos_sdr_reset(), fobos_sdr_read_firmware(), fobos_sdr_write_firmware
 //==============================================================================
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
@@ -31,7 +32,7 @@
 //==============================================================================
 //#define FOBOS_SDR_PRINT_DEBUG
 //==============================================================================
-#define LIB_VERSION "3.0.0 (agile)"
+#define LIB_VERSION "3.0.1 (agile)"
 #define DRV_VERSION "libusb"
 //==============================================================================
 #define FOBOS_VENDOR_ID         0x16d0
@@ -121,6 +122,7 @@ struct fobos_sdr_dev_t
     float * rx_buff;
     int rx_sync_started;
     unsigned char * rx_sync_buf;
+    int do_reset;
 };
 //==============================================================================
 char * to_bin(uint16_t s16, char * str)
@@ -485,6 +487,7 @@ int fobos_sdr_open(struct fobos_sdr_dev_t ** out_dev, uint32_t index)
                     fobos_sdr_fx3_cmd(dev, FOBOS_SDR_CMD, CMD_OPEN, 0);
                     fobos_sdr_set_frequency(dev, 100E6);
                     fobos_sdr_set_samplerate(dev, 10000000.0);
+                    fobos_sdr_set_auto_bandwidth(dev, 0.9);
                     return FOBOS_ERR_OK;
                 }
             }
@@ -528,7 +531,10 @@ int fobos_sdr_close(struct fobos_sdr_dev_t * dev)
         return result;
     }
     fobos_sdr_cancel_async(dev);
-    fobos_sdr_stop_sync(dev);
+    if (dev->rx_sync_started)
+    {
+        fobos_sdr_stop_sync(dev);
+    }
     while (FOBOS_IDDLE != dev->rx_async_status)
     {
 #ifdef FOBOS_SDR_PRINT_DEBUG
@@ -541,10 +547,28 @@ int fobos_sdr_close(struct fobos_sdr_dev_t * dev)
 #endif
     }
     fobos_sdr_fx3_cmd(dev, FOBOS_SDR_CMD, CMD_CLOSE, 0);
+    if (dev->do_reset)
+    {
+        libusb_control_transfer(dev->libusb_devh, CTRLO, 0xE0, 0, 0, 0, 0, CTRL_TIMEOUT);
+    }
     libusb_close(dev->libusb_devh);
     libusb_exit(dev->libusb_ctx);
     free(dev);
     return result;
+}
+//==============================================================================
+int fobos_sdr_reset(struct fobos_sdr_dev_t * dev)
+{
+    int result = fobos_sdr_check(dev);
+#ifdef FOBOS_PRINT_DEBUG
+    printf_internal("%s();\n", __FUNCTION__);
+#endif // FOBOS_PRINT_DEBUG
+    if (result != FOBOS_ERR_OK)
+    {
+        return result;
+    }
+    dev->do_reset = 1;
+    return fobos_sdr_close(dev);
 }
 //==============================================================================
 int fobos_sdr_get_board_info(struct fobos_sdr_dev_t * dev, char * hw_revision, char * fw_version, char * manufacturer, char * product, char * serial)
@@ -756,7 +780,7 @@ int fobos_sdr_set_auto_bandwidth(struct fobos_sdr_dev_t * dev, double value)
     }
     if (dev->rx_auto_bandwidth != value)
     {
-        uint64_t val = (uint64_t)value;
+        uint64_t val = (uint64_t)(value*1024.0);
         fobos_sdr_ctrl_out(dev, FOBOS_SDR_CMD, CMD_SET_AUTOBW, 0, (uint8_t*)&val, 8);
         dev->rx_bandwidth = value;
     }
@@ -885,8 +909,8 @@ void fobos_sdr_convert_buff(struct fobos_sdr_dev_t * dev, unsigned char * data, 
     int16_t * psample = (int16_t *)data;
     int rx_swap_iq = dev->rx_swap_iq ^ FOBOS_SWAP_IQ_HW;
     float sample = 0.0f;
-    float scale_re = 1.0f / 32786.0f;
-    float scale_im = 1.0f / 32786.0f;
+    float scale_re = 1.0f / 32768.0f;
+    float scale_im = 1.0f / 32768.0f;
     if (dev->rx_direct_sampling)
     {
         rx_swap_iq = FOBOS_SWAP_IQ_HW;
@@ -1344,7 +1368,12 @@ int fobos_sdr_start_sync(struct fobos_sdr_dev_t * dev, uint32_t buf_length)
     {
         buf_length = FOBOS_DEF_BUF_LENGTH;
     }
-    buf_length = 128 * (buf_length / 128);
+    dev->packs_per_transfer = 2 * (buf_length / 8192); // should be even
+    if (dev->packs_per_transfer < 16) // the minimal count for the scan
+    {
+        dev->rx_scan_active = 0;
+    }
+    buf_length = 4096 * dev->packs_per_transfer; // complex samples count
     dev->rx_buff = (float*)malloc(buf_length * 2 * sizeof(float));
     dev->transfer_buf_size = buf_length * 4;
     dev->rx_sync_buf = (unsigned char *)malloc(dev->transfer_buf_size);
@@ -1353,7 +1382,7 @@ int fobos_sdr_start_sync(struct fobos_sdr_dev_t * dev, uint32_t buf_length)
         dev->transfer_buf_size = 0;
         return FOBOS_ERR_NO_MEM;
     }
-    fobos_sdr_fx3_cmd(dev, FOBOS_SDR_CMD, CMD_START, 0);
+    fobos_sdr_fx3_cmd(dev, FOBOS_SDR_CMD, CMD_START, dev->packs_per_transfer);
     dev->rx_sync_started = 1;
     return FOBOS_ERR_OK;
 }
@@ -1411,6 +1440,119 @@ int fobos_sdr_stop_sync(struct fobos_sdr_dev_t * dev)
         dev->rx_buff = NULL;
         dev->rx_sync_started = 0;
     }
+    return result;
+}
+//==============================================================================
+int fobos_sdr_write_firmware(struct fobos_sdr_dev_t* dev, const char * file_name, int verbose)
+{
+    int result = fobos_sdr_check(dev);
+#ifdef FOBOS_PRINT_DEBUG
+    printf_internal("%s(%s)\n", __FUNCTION__, file_name);
+#endif // FOBOS_PRINT_DEBUG
+    if (result != FOBOS_ERR_OK)
+    {
+        return result;
+    }
+    if (dev->rx_sync_started || dev->rx_async_status != FOBOS_IDDLE)
+    {
+        return FOBOS_ERR_UNSUPPORTED;
+    }
+    FILE * f = fopen(file_name, "rb");
+    if (f == 0)
+    {
+        return FOBOS_ERR_UNSUPPORTED;
+    }
+    fseek(f, 0, SEEK_END);
+    size_t file_size = ftell(f);
+    if ((file_size == 0) || (file_size > 0x3FFE0))
+    {
+        fclose(f);
+        return FOBOS_ERR_UNSUPPORTED;
+    }
+    result = 0;
+    size_t xx_size = 1024;
+    size_t xx_count = (file_size + xx_size - 1) / xx_size;
+    uint8_t * file_data = malloc(xx_count * xx_size);
+    fseek(f, 0, SEEK_SET);
+    fread(file_data, file_size, 1, f);
+    fclose(f);
+    memset(file_data + file_size, 0, xx_count * xx_size - file_size);
+    uint16_t xsize;
+    uint8_t req_code = 0xED;
+    uint8_t * xx_data = file_data;
+    if (verbose)
+    {
+        printf_internal("writing a firmware");
+    }
+    for (size_t i = 0; i < xx_count; i++)
+    {
+        if (verbose)
+        {
+            printf_internal(".");
+        }
+        xsize = libusb_control_transfer(dev->libusb_devh, CTRLO, req_code, 0, i, xx_data, xx_size, CTRL_TIMEOUT);
+        if (xsize != xx_size)
+        {
+            result = FOBOS_ERR_CONTROL;
+        }
+        xx_data += xx_size;
+    }
+    if (verbose)
+    {
+        printf_internal("done.\n");
+    }
+    free(file_data);
+    return result;
+}
+//==============================================================================
+int fobos_sdr_read_firmware(struct fobos_sdr_dev_t* dev, const char * file_name, int verbose)
+{
+    int result = fobos_sdr_check(dev);
+#ifdef FOBOS_PRINT_DEBUG
+    printf_internal("%s(%s)\n", __FUNCTION__, file_name);
+#endif // FOBOS_PRINT_DEBUG
+    if (result != FOBOS_ERR_OK)
+    {
+        return result;
+    }
+    if (dev->rx_sync_started || dev->rx_async_status != FOBOS_IDDLE)
+    {
+        return FOBOS_ERR_UNSUPPORTED;
+    }
+    FILE * f = fopen(file_name, "wb");
+    if (f == 0)
+    {
+        return FOBOS_ERR_UNSUPPORTED;
+    }
+    result = 0;
+    size_t xx_size = 1024;
+    size_t xx_count = 160;
+    uint8_t * xx_data = malloc(xx_size);
+    uint16_t xsize;
+    uint8_t req_code = 0xEC;
+    if (verbose)
+    {
+        printf_internal("reading a firmware");
+    }
+    for (size_t i = 0; i < xx_count; i++)
+    {
+        if (verbose)
+        {
+            printf_internal(".");
+        }
+        xsize = libusb_control_transfer(dev->libusb_devh, CTRLI, req_code, 0, i, xx_data, xx_size, CTRL_TIMEOUT);
+        if (xsize != xx_size)
+        {
+            result = FOBOS_ERR_CONTROL;
+        }
+        fwrite(xx_data, xx_size, 1, f);
+    }
+    fclose(f);
+    if (verbose)
+    {
+        printf_internal("done.\n");
+    }
+    free(xx_data);
     return result;
 }
 //==============================================================================

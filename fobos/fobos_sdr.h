@@ -9,6 +9,7 @@
 //  Fobos SDR (agile) special API library
 //  To be used with special firmware only
 //  2024.12.07
+//  2025.01.29 - v.3.0.1 - fobos_sdr_reset(), fobos_sdr_read_firmware(), fobos_sdr_write_firmware
 //==============================================================================
 #ifndef LIB_FOBOS_SDR_H
 #define LIB_FOBOS_SDR_H
@@ -57,6 +58,9 @@ API_EXPORT int CALL_CONV fobos_sdr_open(struct fobos_sdr_dev_t ** out_dev, uint3
 // close device
 API_EXPORT int CALL_CONV fobos_sdr_close(struct fobos_sdr_dev_t * dev);
 
+// close and reset device
+API_EXPORT int CALL_CONV fobos_sdr_reset(struct fobos_sdr_dev_t * dev);
+
 // get the board info
 API_EXPORT int CALL_CONV fobos_sdr_get_board_info(
     struct fobos_sdr_dev_t * dev, 
@@ -86,7 +90,6 @@ API_EXPORT int CALL_CONV fobos_sdr_get_scan_index(struct fobos_sdr_dev_t * dev);
 //         0 if there is no scanning mode activated or it was internaly disabled
 //         FOBOS_ERR_ if some error happened
 API_EXPORT int CALL_CONV fobos_sdr_is_scanning(struct fobos_sdr_dev_t * dev);
-
 
 // set rx direct sampling mode:  0 - disabled (default),  1 - enabled
 API_EXPORT int CALL_CONV fobos_sdr_set_direct_sampling(struct fobos_sdr_dev_t * dev, unsigned int enabled);
@@ -142,6 +145,12 @@ API_EXPORT int CALL_CONV fobos_sdr_read_sync(struct fobos_sdr_dev_t * dev, float
 // stop synchronous rx mode
 API_EXPORT int CALL_CONV fobos_sdr_stop_sync(struct fobos_sdr_dev_t * dev);
 
+// read firmware from the device
+API_EXPORT int CALL_CONV fobos_sdr_read_firmware(struct fobos_sdr_dev_t* dev, const char * file_name, int verbose);
+
+// write firmware file to the device
+API_EXPORT int CALL_CONV fobos_sdr_write_firmware(struct fobos_sdr_dev_t* dev, const char * file_name, int verbose);
+
 // obtain error text by code
 API_EXPORT const char * CALL_CONV fobos_sdr_error_name(int error);
 //==============================================================================
@@ -149,5 +158,5 @@ API_EXPORT int CALL_CONV fobos_sdr_test(struct fobos_sdr_dev_t* dev, int test, i
 #ifdef __cplusplus
 }
 #endif
-#endif // !LIB_FOBOS_H
+#endif // !LIB_FOBOS_SDR_H
 //==============================================================================

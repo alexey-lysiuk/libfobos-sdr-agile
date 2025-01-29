@@ -1,16 +1,12 @@
-v.2.3.1
+v.3.0.1
 
-- update fow hw rev.3.0.0 (also backwards compatibility)
-- new band plan
-- IQ calibration on the fly
+- fobos_sdr_reset() function to reset the device, no need to replug or press a buttons
+- read/write firmware API fobos_sdr_read_firmware(), fobos_sdr_write_firmware()
+- fobos_sdr_fwloader tool
+- !!! please update the firmware to v.3.0.1
 
-v.2.2.2
 
-- sync mode (fobos_rx_start_sync, fobos_rx_read_sync, fobos_rx_stop_sync)
-- calibration modified
-- direct sampling modified
- 
+v.3.0.0
 
-v.2.1.1 (initial)
+- the first special release
 
-- all the basic functionality
