@@ -1,3 +1,9 @@
+v.3.0.2
+
+- floating clock fixed fobos_sdr_set_clk_source()
+- new firmware images v.3.0.2 added
+- firmware update guide modified
+
 v.3.0.1
 
 - fobos_sdr_reset() function to reset the device, no need to replug or press a buttons
