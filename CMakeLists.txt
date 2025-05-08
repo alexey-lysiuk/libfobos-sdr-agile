@@ -138,7 +138,7 @@ message(>>> "PROJECT_BINARY_DIR: " ${PROJECT_BINARY_DIR})
 add_library(libfobos_sdr SHARED fobos/fobos_sdr.c)
 
 if(MSVC)
-    target_compile_options(libfobos PUBLIC "/MT")
+    target_compile_options(libfobos_sdr PUBLIC "/MT")
     add_custom_command(TARGET libfobos_sdr
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/Debug
