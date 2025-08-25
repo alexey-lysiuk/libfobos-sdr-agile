@@ -12,17 +12,17 @@ void get_devinfo()
 {
     struct fobos_sdr_dev_t * dev = NULL;
     int result = 0;
-    char lib_version[32];
-    char drv_version[32];
+    char lib_version[64];
+    char drv_version[64];
     char serials[256] = {0};
 
     int index = 0;
 
-    char hw_revision[32];
-    char fw_version[32];
-    char manufacturer[32];
-    char product[32];
-    char serial[32];
+    char hw_revision[64];
+    char fw_version[64];
+    char manufacturer[64];
+    char product[64];
+    char serial[64];
     
     fobos_sdr_get_api_info(lib_version, drv_version);
 

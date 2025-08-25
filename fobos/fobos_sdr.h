@@ -10,6 +10,7 @@
 //  To be used with special firmware only
 //  2024.12.07
 //  2025.01.29 - v.3.0.1 - fobos_sdr_reset(), fobos_sdr_read_firmware(), fobos_sdr_write_firmware
+//  2025.08.25 - v.3.1.0 - VGA gain fixed
 //==============================================================================
 #ifndef LIB_FOBOS_SDR_H
 #define LIB_FOBOS_SDR_H
@@ -154,7 +155,7 @@ API_EXPORT int CALL_CONV fobos_sdr_write_firmware(struct fobos_sdr_dev_t* dev, c
 // obtain error text by code
 API_EXPORT const char * CALL_CONV fobos_sdr_error_name(int error);
 //==============================================================================
-API_EXPORT int CALL_CONV fobos_sdr_test(struct fobos_sdr_dev_t* dev, int test, int value);
+
 #ifdef __cplusplus
 }
 #endif

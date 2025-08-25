@@ -10,6 +10,7 @@
 //  To be used with special firmware only
 //  2024.12.07
 //  2025.01.29 - v.3.0.1 - fobos_sdr_reset(), fobos_sdr_read_firmware(), fobos_sdr_write_firmware
+//  2025.08.25 - v.3.1.0 - VGA gain fixed
 //==============================================================================
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
@@ -32,7 +33,7 @@
 //==============================================================================
 //#define FOBOS_SDR_PRINT_DEBUG
 //==============================================================================
-#define LIB_VERSION "3.0.1 (agile)"
+#define LIB_VERSION "3.1.0 (agile)"
 #define DRV_VERSION "libusb"
 //==============================================================================
 #define FOBOS_VENDOR_ID         0x16d0
@@ -735,7 +736,7 @@ int fobos_sdr_set_vga_gain(struct fobos_sdr_dev_t * dev, unsigned int value)
         return result;
     }
     result = 0;
-    if (value > 15) value = 15;
+    if (value > 31) value = 31;
     if (value != dev->rx_vga_gain)
     {
         fobos_sdr_fx3_cmd(dev, FOBOS_SDR_CMD, CMD_SET_VGA, value);
@@ -939,7 +940,7 @@ void fobos_sdr_convert_buff(struct fobos_sdr_dev_t * dev, unsigned char * data, 
         dst_re[0] = (sample - dc_re) * scale_re;
         sample = (float)(psample[1] & 0x3FFF);
         dc_im += k * (sample - dc_im);
-        dst_im[0] = (sample - dc_im) * scale_re;
+        dst_im[0] = (sample - dc_im) * scale_im;
         // 1
         dst_re[2] = ((float)(psample[2] & 0x3FFF) - dc_re) * scale_re;
         dst_im[2] = ((float)(psample[3] & 0x3FFF) - dc_im) * scale_im;
@@ -1048,9 +1049,9 @@ int fobos_sdr_alloc_buffers(struct fobos_sdr_dev_t *dev)
         memset(dev->transfer_buf, 0, dev->transfers_count * sizeof(unsigned char*));
     }
 #if defined(ENABLE_ZEROCOPY) && defined (__linux__) && LIBUSB_API_VERSION >= 0x01000105
-    printf_internal("Allocating %d zero-copy buffers\n", dev->transfer_buf_count);
+    printf_internal("Allocating %d zero-copy buffers\n", dev->transfers_count);
     dev->use_zerocopy = 1;
-    for (i = 0; i < dev->transfer_buf_count; ++i)
+    for (i = 0; i < dev->transfers_count; ++i)
     {
         dev->transfer_buf[i] = libusb_dev_mem_alloc(dev->libusb_devh, dev->transfer_buf_size);
         if (dev->transfer_buf[i])
@@ -1073,7 +1074,7 @@ int fobos_sdr_alloc_buffers(struct fobos_sdr_dev_t *dev)
     }
     if (!dev->use_zerocopy)
     {
-        for (i = 0; i < dev->transfer_buf_count; ++i)
+        for (i = 0; i < dev->transfers_count; ++i)
         {
             if (dev->transfer_buf[i])
             {
@@ -1574,32 +1575,3 @@ const char * fobos_sdr_error_name(int error)
     }
 }
 //==============================================================================
-int fobos_sdr_test(struct fobos_sdr_dev_t* dev, int test, int value)
-{
-#ifdef FOBOS_SDR_PRINT_DEBUG
-    printf_internal("%s(%d, %d)\n", __FUNCTION__, test, value);
-#endif // FOBOS_SDR_PRINT_DEBUG
-    switch (test)
-    {
-        case 0:
-        {
-        }
-        break;
-        case 1:
-        {
-        }
-        break;
-        case 2:
-        {
-        }
-        break;
-
-        default:
-        {
-        }
-        break;
-    }
-    return 0;
-}
-//==============================================================================
-
