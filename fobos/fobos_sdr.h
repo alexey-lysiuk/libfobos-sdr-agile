@@ -11,6 +11,7 @@
 //  2024.12.07
 //  2025.01.29 - v.3.0.1 - fobos_sdr_reset(), fobos_sdr_read_firmware(), fobos_sdr_write_firmware
 //  2025.08.25 - v.3.1.0 - VGA gain fixed
+//  2025.10.23 - v.3.1.0 - new software DC filter
 //==============================================================================
 #ifndef LIB_FOBOS_SDR_H
 #define LIB_FOBOS_SDR_H
